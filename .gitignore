@@ -1,0 +1,35 @@
+# Environment — never commit these
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build outputs
+dist/
+build/
+*/dist/
+*/build/
+
+# AWS SAM
+.aws-sam/
+samconfig.toml
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# PPTX source (optional — keep the generated file)
+pitch/node_modules/

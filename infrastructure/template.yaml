@@ -1,0 +1,93 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Mindly — daily mental check-in app
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 15
+    MemorySize: 256
+    Environment:
+      Variables:
+        TABLE_USERS:    !Ref UsersTable
+        TABLE_CHECKINS: !Ref CheckInsTable
+        JWT_SECRET:     !Sub "{{resolve:ssm:/mindly/jwt-secret}}"
+        AWS_REGION:     !Ref AWS::Region
+        BEDROCK_MODEL_ID: "anthropic.claude-3-haiku-20240307-v1:0"
+
+Resources:
+  # --- API ---
+  MindlyApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors:
+        AllowOrigin: "'*'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowMethods: "'GET,POST,OPTIONS'"
+
+  # --- Lambda (single Express handler via lambda-adapter) ---
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/lambda.handler
+      CodeUri: ../backend
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref UsersTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref CheckInsTable }
+        - Statement:
+            Effect: Allow
+            Action: bedrock:InvokeModel
+            Resource: "*"
+      Events:
+        ProxyRoot:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MindlyApi
+            Path: /{proxy+}
+            Method: ANY
+
+  # --- DynamoDB ---
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: mindly-users
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: id,    AttributeType: S }
+        - { AttributeName: email, AttributeType: S }
+      KeySchema:
+        - { AttributeName: id, KeyType: HASH }
+      GlobalSecondaryIndexes:
+        - IndexName: email-index
+          KeySchema:
+            - { AttributeName: email, KeyType: HASH }
+          Projection: { ProjectionType: ALL }
+
+  CheckInsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: mindly-checkins
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: id,     AttributeType: S }
+        - { AttributeName: userId, AttributeType: S }
+        - { AttributeName: teamId, AttributeType: S }
+        - { AttributeName: date,   AttributeType: S }
+      KeySchema:
+        - { AttributeName: id, KeyType: HASH }
+      GlobalSecondaryIndexes:
+        - IndexName: userId-date-index
+          KeySchema:
+            - { AttributeName: userId, KeyType: HASH }
+            - { AttributeName: date,   KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+        - IndexName: teamId-date-index
+          KeySchema:
+            - { AttributeName: teamId, KeyType: HASH }
+            - { AttributeName: date,   KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${MindlyApi}.execute-api.${AWS::Region}.amazonaws.com/prod"

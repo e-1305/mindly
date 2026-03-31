@@ -1,0 +1,10 @@
+{
+  "name": "mindly-pitch",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node generate.js"
+  },
+  "dependencies": {
+    "pptxgenjs": "^3.12.0"
+  }
+}
