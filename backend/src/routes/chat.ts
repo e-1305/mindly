@@ -1,16 +1,11 @@
 import { Router } from "express";
-import { BedrockRuntimeClient, InvokeModelWithResponseStreamCommand } from "@aws-sdk/client-bedrock-runtime";
+import { InvokeModelWithResponseStreamCommand } from "@aws-sdk/client-bedrock-runtime";
+import { bedrock, MODEL_ID } from "../lib/bedrock";
 import { requireAuth, AuthUser } from "../lib/auth";
 import { buildSystemPrompt } from "../lib/ragDocs";
 import { z } from "zod";
 
 const router = Router();
-
-const bedrock = new BedrockRuntimeClient({
-  region: process.env.AWS_REGION ?? "us-west-2",
-});
-
-const MODEL_ID = process.env.BEDROCK_MODEL_ID ?? "anthropic.claude-3-haiku-20240307-v1:0";
 
 const MessageSchema = z.object({
   messages: z.array(

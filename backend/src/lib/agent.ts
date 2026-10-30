@@ -1,41 +1,29 @@
-import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
-
-const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? "eu-west-1" });
-
-const MODEL_ID = process.env.BEDROCK_MODEL_ID ?? "anthropic.claude-3-haiku-20240307-v1:0";
+import { InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
+import { bedrock, MODEL_ID } from "./bedrock";
+import type { TeamAggregate } from "./privacy";
 
 /**
- * Strands-style agent: takes raw check-in entries and returns
- * a human-readable insight for the manager.
- *
- * Uses AWS Bedrock (Claude) as the LLM backbone.
- * Replace with @strands/agent SDK when available in your environment.
+ * Turns team-level aggregates into a short, actionable insight for a manager.
+ * The model never receives user IDs, individual scores or free-text notes.
  */
-export async function getAIInsight(entries: Record<string, any>[]): Promise<string> {
-  if (!entries.length) return "No check-in data available yet.";
+export async function getAIInsight(
+  aggregate: Extract<TeamAggregate, { suppressed: false }>
+): Promise<string> {
+  const { respondents, averages, bands, daily } = aggregate;
 
-  // Aggregate per user
-  const byUser: Record<string, { mood: number[]; energy: number[]; stress: number[]; mentalLoad: number[] }> = {};
-  for (const e of entries) {
-    if (!byUser[e.userId]) byUser[e.userId] = { mood: [], energy: [], stress: [], mentalLoad: [] };
-    byUser[e.userId].mood.push(e.mood);
-    byUser[e.userId].energy.push(e.energy);
-    byUser[e.userId].stress.push(e.stress);
-    byUser[e.userId].mentalLoad.push(e.mentalLoad);
-  }
+  const trend = daily.length
+    ? daily.map((d) => `${d.day}: mood ${d.mood}, stress ${d.stress} (${d.respondents} people)`).join("\n")
+    : "Not enough people per day to show a daily trend.";
 
-  const avg = (arr: number[]) => (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1);
+  const prompt = `You are a workplace wellbeing analyst. Below are aggregated, anonymous check-in results for one team (scores 1–5).
+Give the manager a concise (3–4 sentences), actionable insight at TEAM level.
+Never try to identify individuals, never speculate about anyone's health, and suggest team-level actions (workload, meetings, 1:1 availability).
 
-  const summary = Object.entries(byUser)
-    .map(([uid, v]) =>
-      `User ${uid}: mood=${avg(v.mood)}, energy=${avg(v.energy)}, stress=${avg(v.stress)}, mentalLoad=${avg(v.mentalLoad)}`
-    )
-    .join("\n");
-
-  const prompt = `You are a workplace wellbeing analyst. Based on the following anonymized team check-in averages from the past week, provide a concise (3-4 sentences) actionable insight for the HR manager. Focus on identifying at-risk patterns and concrete recommendations. Do not mention specific user IDs.
-
-Data:
-${summary}
+Respondents: ${respondents}
+Averages: mood ${averages.mood}, energy ${averages.energy}, stress ${averages.stress}, mental load ${averages.mentalLoad}
+People in each band (latest check-in): high stress ${bands.highStress}, high mental load ${bands.highMentalLoad}, low mood ${bands.lowMood}, low energy ${bands.lowEnergy}
+Daily trend:
+${trend}
 
 Insight:`;
 
