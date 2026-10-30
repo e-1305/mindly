@@ -191,7 +191,7 @@ export default function HRDashboard() {
               <div>
                 <p className="text-sm font-semibold text-red-700">{totalAtRisk} employee{totalAtRisk > 1 ? "s" : ""} in critical or low state</p>
                 <p className="text-xs text-red-400 mt-0.5">
-                  {ORG.filter((m) => m.role === "employee" && wellbeingScore(m) < 2.6).map((m) => m.name.split(" ")[0]).join(", ")}
+                  Names are never shown. Consider team-level actions and remind everyone that support is available.
                 </p>
               </div>
             </motion.div>

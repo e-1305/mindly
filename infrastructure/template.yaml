@@ -2,6 +2,12 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: Mindly — daily mental check-in app
 
+Parameters:
+  BedrockModelId:
+    Type: String
+    Default: "anthropic.claude-3-haiku-20240307-v1:0"
+    Description: Claude model ID enabled in your Bedrock account and region
+
 Globals:
   Function:
     Runtime: nodejs20.x
@@ -12,8 +18,8 @@ Globals:
         TABLE_USERS:    !Ref UsersTable
         TABLE_CHECKINS: !Ref CheckInsTable
         JWT_SECRET:     !Sub "{{resolve:ssm:/mindly/jwt-secret}}"
-        AWS_REGION:     !Ref AWS::Region
-        BEDROCK_MODEL_ID: "anthropic.claude-3-haiku-20240307-v1:0"
+        BEDROCK_MODEL_ID: !Ref BedrockModelId
+        MIN_GROUP_SIZE:   "5"
 
 Resources:
   # --- API ---
@@ -37,7 +43,9 @@ Resources:
         - DynamoDBCrudPolicy: { TableName: !Ref CheckInsTable }
         - Statement:
             Effect: Allow
-            Action: bedrock:InvokeModel
+            Action:
+              - bedrock:InvokeModel
+              - bedrock:InvokeModelWithResponseStream
             Resource: "*"
       Events:
         ProxyRoot:

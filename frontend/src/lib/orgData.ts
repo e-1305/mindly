@@ -2,8 +2,6 @@ import { AvatarConfig } from "./avatarTypes";
 
 export type OrgRole = "hr" | "manager" | "lead" | "employee";
 
-import { AvatarConfig } from "../lib/avatarTypes";
-
 export interface OrgMember {
   id: string;
   name: string;
